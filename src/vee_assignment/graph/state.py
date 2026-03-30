@@ -8,6 +8,7 @@ from langgraph.graph import add_messages
 
 class AssistantState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
+    current_month_year: str
     organization_name: str
     organization_url: str
     platform: str

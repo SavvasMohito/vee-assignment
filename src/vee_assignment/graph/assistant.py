@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 import httpx
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
@@ -23,6 +24,12 @@ from vee_assignment.tools.jina import JinaClient
 
 def build_assistant_graph(settings: Settings):
     model = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
+    current_month_year = datetime.now().strftime("%B %Y")
+    runtime_system_prompt = (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Current month and year: {current_month_year}. "
+        "Use this for recency-sensitive reasoning and search planning."
+    )
     jina = JinaClient(
         api_key=settings.jina_api_key,
         timeout_seconds=settings.request_timeout_seconds,
@@ -45,6 +52,7 @@ def build_assistant_graph(settings: Settings):
     post_nodes = create_post_nodes(
         model=model,
         jina=jina,
+        system_prompt=runtime_system_prompt,
         plan_model=plan_model,
         pillar_model=pillar_model,
         post_draft_model=post_draft_model,
@@ -52,22 +60,27 @@ def build_assistant_graph(settings: Settings):
     )
     email_nodes = create_email_nodes(
         model=model,
+        system_prompt=runtime_system_prompt,
         email_category_model=email_category_model,
         email_draft_model=email_draft_model,
         email_review_model=email_review_model,
     )
     qa_nodes = create_qa_nodes(
         jina=jina,
+        system_prompt=runtime_system_prompt,
         qa_scope_model=qa_scope_model,
         qa_search_plan_model=qa_search_plan_model,
         qa_answer_model=qa_answer_model,
     )
 
     def infer_org_profile_node(state: AssistantState) -> AssistantState:
+        month_context = {"current_month_year": current_month_year}
         if state.get("organization_name"):
-            return {}
+            return month_context
         organization_url = state.get("organization_url", "").strip()
-        return _infer_organization_profile(model, jina, organization_url)
+        profile = _infer_organization_profile(model, jina, organization_url, runtime_system_prompt)
+        profile.update(month_context)
+        return profile
 
     def router_node(state: AssistantState) -> AssistantState:
         user_request = _latest_user_message(state)
@@ -92,7 +105,7 @@ def build_assistant_graph(settings: Settings):
 
         decision = router_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": runtime_system_prompt},
                 {"role": "user", "content": ROUTER_PROMPT.format(user_message=user_request)},
             ]
         )
@@ -111,7 +124,7 @@ def build_assistant_graph(settings: Settings):
     def analyze_post_requirements_node(state: AssistantState) -> AssistantState:
         decision = post_requirements_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": runtime_system_prompt},
                 {
                     "role": "user",
                     "content": POST_REQUIREMENTS_PROMPT.format(
@@ -153,7 +166,7 @@ def build_assistant_graph(settings: Settings):
     def analyze_email_requirements_node(state: AssistantState) -> AssistantState:
         decision = email_requirements_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": runtime_system_prompt},
                 {"role": "user", "content": EMAIL_REQUIREMENTS_PROMPT.format(user_request=state.get("user_request", ""))},
             ]
         )
@@ -278,11 +291,17 @@ def build_post_creation_graph(settings: Settings):
 
 def load_organization_profile(settings: Settings, organization_url: str) -> dict[str, str]:
     model = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key)
+    current_month_year = datetime.now().strftime("%B %Y")
+    runtime_system_prompt = (
+        f"{SYSTEM_PROMPT}\n\n"
+        f"Current month and year: {current_month_year}. "
+        "Use this for recency-sensitive reasoning and search planning."
+    )
     jina = JinaClient(
         api_key=settings.jina_api_key,
         timeout_seconds=settings.request_timeout_seconds,
     )
-    return _infer_organization_profile(model, jina, organization_url)
+    return _infer_organization_profile(model, jina, organization_url, runtime_system_prompt)
 
 
 def _latest_user_message(state: AssistantState) -> str:
@@ -307,6 +326,7 @@ def _infer_organization_profile(
     model: ChatOpenAI,
     jina: JinaClient,
     organization_url: str,
+    system_prompt: str,
 ) -> dict[str, str]:
     organization_url = organization_url.strip()
     if not organization_url:
@@ -323,7 +343,7 @@ def _infer_organization_profile(
 
     inferred = model.with_structured_output(OrganizationProfile).invoke(
         [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {
                 "role": "user",
                 "content": ORG_NAME_PROMPT.format(

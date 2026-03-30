@@ -12,13 +12,13 @@ from vee_assignment.prompts.post import (
     REVIEW_PROMPT,
     SEARCH_PLAN_PROMPT,
 )
-from vee_assignment.prompts.router import SYSTEM_PROMPT
 from vee_assignment.tools.jina import JinaClient
 
 
 def create_post_nodes(
     model: ChatOpenAI,
     jina: JinaClient,
+    system_prompt: str,
     plan_model,
     pillar_model,
     post_draft_model,
@@ -29,12 +29,13 @@ def create_post_nodes(
     def search_plan_node(state: AssistantState) -> AssistantState:
         planned = plan_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": SEARCH_PLAN_PROMPT.format(
                         organization_name=state.get("organization_name", ""),
                         organization_url=state.get("organization_url", ""),
+                        current_month_year=state.get("current_month_year", ""),
                         platform=state.get("platform", ""),
                         user_request=state.get("user_request", ""),
                     ),
@@ -81,7 +82,7 @@ def create_post_nodes(
         research_blob = "\n\n".join(f"Source: {item['url']}\n{item['content'][:1500]}" for item in docs)
         summary = model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": RESEARCH_SUMMARY_PROMPT.format(research_blob=research_blob),
@@ -97,7 +98,7 @@ def create_post_nodes(
     def pillar_node(state: AssistantState) -> AssistantState:
         decision = pillar_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": PILLAR_PROMPT.format(
@@ -114,7 +115,7 @@ def create_post_nodes(
     def draft_node(state: AssistantState) -> AssistantState:
         drafted = post_draft_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": DRAFT_PROMPT.format(
@@ -137,7 +138,7 @@ def create_post_nodes(
     def review_node(state: AssistantState) -> AssistantState:
         reviewed = post_review_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": REVIEW_PROMPT.format(

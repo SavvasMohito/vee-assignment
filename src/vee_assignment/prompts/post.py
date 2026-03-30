@@ -26,6 +26,7 @@ SEARCH_PLAN_PROMPT = """Create one focused web search query for this post reques
 
 Organization name: {organization_name}
 Organization website: {organization_url}
+Current month/year: {current_month_year}
 Target platform: {platform}
 User request: {user_request}
 

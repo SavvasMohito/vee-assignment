@@ -5,7 +5,6 @@ from langchain_openai import ChatOpenAI
 
 from vee_assignment.graph.state import AssistantState
 from vee_assignment.prompts.email import EMAIL_CATEGORY_PROMPT, EMAIL_DRAFT_PROMPT, EMAIL_REVIEW_PROMPT
-from vee_assignment.prompts.router import SYSTEM_PROMPT
 
 
 def route_after_email_category(state: AssistantState) -> str:
@@ -16,6 +15,7 @@ def route_after_email_category(state: AssistantState) -> str:
 
 def create_email_nodes(
     model: ChatOpenAI,
+    system_prompt: str,
     email_category_model,
     email_draft_model,
     email_review_model,
@@ -33,7 +33,7 @@ def create_email_nodes(
 
         decision = email_category_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": EMAIL_CATEGORY_PROMPT.format(user_request=state.get("user_request", ""))},
             ]
         )
@@ -56,7 +56,7 @@ def create_email_nodes(
     def draft_email_node(state: AssistantState) -> AssistantState:
         drafted = email_draft_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": EMAIL_DRAFT_PROMPT.format(
@@ -77,7 +77,7 @@ def create_email_nodes(
     def review_email_node(state: AssistantState) -> AssistantState:
         reviewed = email_review_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": EMAIL_REVIEW_PROMPT.format(

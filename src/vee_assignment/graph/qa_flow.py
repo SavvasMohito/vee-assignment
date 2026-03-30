@@ -5,7 +5,6 @@ from langchain_core.messages import AIMessage
 
 from vee_assignment.graph.state import AssistantState
 from vee_assignment.prompts.qa import QA_ANSWER_PROMPT, QA_SCOPE_PROMPT, QA_SEARCH_PLAN_PROMPT
-from vee_assignment.prompts.router import SYSTEM_PROMPT
 from vee_assignment.tools.jina import JinaClient
 
 
@@ -17,6 +16,7 @@ def route_after_qa_scope(state: AssistantState) -> str:
 
 def create_qa_nodes(
     jina: JinaClient,
+    system_prompt: str,
     qa_scope_model,
     qa_search_plan_model,
     qa_answer_model,
@@ -27,7 +27,7 @@ def create_qa_nodes(
         user_request = state.get("user_request", "")
         decision = qa_scope_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": QA_SCOPE_PROMPT.format(
@@ -55,12 +55,13 @@ def create_qa_nodes(
         question = state.get("qa_question", state.get("user_request", ""))
         planned = qa_search_plan_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": QA_SEARCH_PLAN_PROMPT.format(
                         organization_name=state.get("organization_name", ""),
                         organization_url=state.get("organization_url", ""),
+                        current_month_year=state.get("current_month_year", ""),
                         qa_question=question,
                     ),
                 },
@@ -109,7 +110,7 @@ def create_qa_nodes(
 
         drafted = qa_answer_model.invoke(
             [
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
                     "content": QA_ANSWER_PROMPT.format(

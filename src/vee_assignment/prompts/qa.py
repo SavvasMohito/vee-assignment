@@ -21,6 +21,7 @@ QA_SEARCH_PLAN_PROMPT = """Create one focused web search query to answer the use
 Organization:
 - Name: {organization_name}
 - URL: {organization_url}
+- Current month/year: {current_month_year}
 
 Question:
 {qa_question}
