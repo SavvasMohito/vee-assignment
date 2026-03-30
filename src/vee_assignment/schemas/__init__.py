@@ -1,4 +1,4 @@
-"""Pydantic schemas for router, post, and email flows."""
+"""Pydantic schemas for router, post, email, and QA flows."""
 
 from vee_assignment.schemas.email import (
     EmailCategory,
@@ -14,6 +14,7 @@ from vee_assignment.schemas.post import (
     ReviewResult,
     SearchPlan,
 )
+from vee_assignment.schemas.qa import QaAnswer, QaScopeDecision, QaSearchPlan
 from vee_assignment.schemas.router import OrganizationProfile, RouteDecision, RouteIntent
 
 __all__ = [
@@ -26,6 +27,9 @@ __all__ = [
     "PillarDecision",
     "Platform",
     "PostDraft",
+    "QaAnswer",
+    "QaScopeDecision",
+    "QaSearchPlan",
     "ReviewResult",
     "RouteDecision",
     "RouteIntent",

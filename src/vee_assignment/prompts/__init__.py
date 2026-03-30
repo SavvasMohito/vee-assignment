@@ -1,4 +1,4 @@
-"""Prompt templates for router, post, and email flows."""
+"""Prompt templates for router, post, email, and QA flows."""
 
 from vee_assignment.prompts.email import (
     EMAIL_CATEGORY_PROMPT,
@@ -12,6 +12,7 @@ from vee_assignment.prompts.post import (
     REVIEW_PROMPT,
     SEARCH_PLAN_PROMPT,
 )
+from vee_assignment.prompts.qa import QA_ANSWER_PROMPT, QA_SCOPE_PROMPT, QA_SEARCH_PLAN_PROMPT
 from vee_assignment.prompts.router import ORG_NAME_PROMPT, ROUTER_PROMPT, SYSTEM_PROMPT
 
 __all__ = [
@@ -21,6 +22,9 @@ __all__ = [
     "EMAIL_REVIEW_PROMPT",
     "ORG_NAME_PROMPT",
     "PILLAR_PROMPT",
+    "QA_ANSWER_PROMPT",
+    "QA_SCOPE_PROMPT",
+    "QA_SEARCH_PLAN_PROMPT",
     "RESEARCH_SUMMARY_PROMPT",
     "REVIEW_PROMPT",
     "ROUTER_PROMPT",

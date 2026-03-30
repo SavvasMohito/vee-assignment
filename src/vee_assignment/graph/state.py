@@ -34,6 +34,19 @@ class AssistantState(TypedDict, total=False):
     email_extracted_details: str
     email_category_supported: bool
 
+    # QA flow keys.
+    qa_question: str
+    qa_scope_allowed: bool
+    qa_scope_reasoning: str
+    qa_followup_or_redirect: str
+    qa_search_query: str
+    qa_search_rationale: str
+    qa_website_context: str
+    qa_research_documents: list[dict[str, str]]
+    qa_answer: str
+    qa_source_urls: list[str]
+    qa_warning: str
+
     # Post flow keys.
     search_query: str
     search_rationale: str

@@ -46,6 +46,9 @@ ROUTER_PROMPT = """Classify the user request into one route:
 Routing rule:
 - If the user asks to draft or compose any email, always choose `email` even if the requested email type is unsupported.
 - If the user asks to draft or compose any social post, choose `post` even when topic details are missing.
+- If the user asks an informational question (especially questions starting with what/why/how/when/who), choose `qa`.
+- Let the QA scope-analysis step decide if the question is organization-related or out of scope.
+- Choose `other` only for requests that are not post, email, or informational Q&A.
 
 User message:
 {user_message}

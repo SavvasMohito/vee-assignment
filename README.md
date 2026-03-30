@@ -75,6 +75,7 @@ Then you can chat with requests like:
 Before drafting, Maggie uses an LLM requirement-check step to decide whether your request is specific enough.
 If a post request is missing required context (platform and/or topic preference), Maggie asks a targeted follow-up question before creating content.
 For email drafting, Maggie confirms one of the 3 supported email categories when needed and asks for missing details before drafting.
+If you ask a direct question, Maggie routes it to an organization Q&A branch, checks whether the question is in-scope for org/public-context answers, and then responds using organization website context plus web research.
 
 Type `exit` to quit.
 
@@ -87,7 +88,7 @@ The assistant uses a single LangGraph `StateGraph`:
 3. **Router** - classify each message into `post`, `email`, `qa`, or `other`.
 4. **Post branch** - LLM requirement analysis (platform/topic sufficiency), then research, pillar selection, draft, review, finalize.
 5. **Email branch** - LLM requirement analysis (supported category/details sufficiency), then category validation, draft, review, finalize.
-6. **Q&A branch** - placeholder response (next milestone).
+6. **Q&A branch** - LLM scope analysis, website + web retrieval, answer synthesis with source links.
 7. **Other branch** - conversational out-of-scope/help response.
 
 Key modules:
@@ -96,8 +97,9 @@ Key modules:
 - `src/vee_assignment/graph/state.py` (shared `AssistantState`)
 - `src/vee_assignment/graph/post_flow.py` (social post branch)
 - `src/vee_assignment/graph/email_flow.py` (email branch)
-- `src/vee_assignment/prompts/router.py`, `prompts/post.py`, `prompts/email.py`
-- `src/vee_assignment/schemas/router.py`, `schemas/post.py`, `schemas/email.py`
+- `src/vee_assignment/graph/qa_flow.py` (organization Q&A branch)
+- `src/vee_assignment/prompts/router.py`, `prompts/post.py`, `prompts/email.py`, `prompts/qa.py`
+- `src/vee_assignment/schemas/router.py`, `schemas/post.py`, `schemas/email.py`, `schemas/qa.py`
 - `src/vee_assignment/config.py`, `tools/jina.py`, `cli.py`
 
 ## Notes For Next Milestones

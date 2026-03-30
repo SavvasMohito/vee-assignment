@@ -9,12 +9,14 @@ from langgraph.graph import END, START, StateGraph
 from vee_assignment.config import Settings
 from vee_assignment.graph.email_flow import create_email_nodes, route_after_email_category
 from vee_assignment.graph.post_flow import create_post_nodes
+from vee_assignment.graph.qa_flow import create_qa_nodes, route_after_qa_scope
 from vee_assignment.graph.state import AssistantState
 from vee_assignment.prompts.email import EMAIL_REQUIREMENTS_PROMPT
 from vee_assignment.prompts.post import POST_REQUIREMENTS_PROMPT
 from vee_assignment.prompts.router import ORG_NAME_PROMPT, ROUTER_PROMPT, SYSTEM_PROMPT
 from vee_assignment.schemas.email import EmailCategoryDecision, EmailDraft, EmailRequirementDecision, EmailReviewResult
 from vee_assignment.schemas.post import PillarDecision, PostDraft, PostRequirementDecision, ReviewResult, SearchPlan
+from vee_assignment.schemas.qa import QaAnswer, QaScopeDecision, QaSearchPlan
 from vee_assignment.schemas.router import OrganizationProfile, RouteDecision
 from vee_assignment.tools.jina import JinaClient
 
@@ -36,6 +38,9 @@ def build_assistant_graph(settings: Settings):
     email_category_model = model.with_structured_output(EmailCategoryDecision)
     email_draft_model = model.with_structured_output(EmailDraft)
     email_review_model = model.with_structured_output(EmailReviewResult)
+    qa_scope_model = model.with_structured_output(QaScopeDecision)
+    qa_search_plan_model = model.with_structured_output(QaSearchPlan)
+    qa_answer_model = model.with_structured_output(QaAnswer)
 
     post_nodes = create_post_nodes(
         model=model,
@@ -50,6 +55,12 @@ def build_assistant_graph(settings: Settings):
         email_category_model=email_category_model,
         email_draft_model=email_draft_model,
         email_review_model=email_review_model,
+    )
+    qa_nodes = create_qa_nodes(
+        jina=jina,
+        qa_scope_model=qa_scope_model,
+        qa_search_plan_model=qa_search_plan_model,
+        qa_answer_model=qa_answer_model,
     )
 
     def infer_org_profile_node(state: AssistantState) -> AssistantState:
@@ -131,8 +142,7 @@ def build_assistant_graph(settings: Settings):
 
     def ask_post_requirements_node(state: AssistantState) -> AssistantState:
         message = state.get("post_followup_question", "").strip() or (
-            "Before I draft, do you have a specific topic in mind, or should I suggest "
-            "one from the latest news about your organization?"
+            "Before I draft, do you have a specific topic in mind, or should I suggest " "one from the latest news about your organization?"
         )
         return {
             "messages": [AIMessage(content=message)],
@@ -177,19 +187,11 @@ def build_assistant_graph(settings: Settings):
             "pending_email_request": state.get("pending_email_request", state.get("user_request", "")),
         }
 
-    def qa_not_implemented_node(state: AssistantState) -> AssistantState:
-        message = (
-            "Sorry, I can't help with organization Q&A just yet. "
-            "For now, I can help you create social posts and draft emails "
-            "in the 3 supported categories."
-        )
-        return {"messages": [AIMessage(content=message)]}
-
     def capabilities_help_node(state: AssistantState) -> AssistantState:
         message = (
             "Sorry, I can't help with that. If you'd like, I can help you create "
-            "social media posts, draft one of the 3 supported email types, or soon "
-            "answer questions about your organization."
+            "social media posts, draft one of the 3 supported email types, or answer "
+            "questions about your organization."
         )
         return {"messages": [AIMessage(content=message)]}
 
@@ -200,12 +202,13 @@ def build_assistant_graph(settings: Settings):
     graph_builder.add_node("ask_post_requirements", ask_post_requirements_node)
     graph_builder.add_node("analyze_email_requirements", analyze_email_requirements_node)
     graph_builder.add_node("ask_email_requirements", ask_email_requirements_node)
-    graph_builder.add_node("qa_not_implemented", qa_not_implemented_node)
     graph_builder.add_node("capabilities_help", capabilities_help_node)
 
     for name, fn in post_nodes.items():
         graph_builder.add_node(name, fn)
     for name, fn in email_nodes.items():
+        graph_builder.add_node(name, fn)
+    for name, fn in qa_nodes.items():
         graph_builder.add_node(name, fn)
 
     graph_builder.add_edge(START, "infer_org_profile")
@@ -216,7 +219,7 @@ def build_assistant_graph(settings: Settings):
         {
             "post": "analyze_post_requirements",
             "email": "analyze_email_requirements",
-            "qa": "qa_not_implemented",
+            "qa": "analyze_qa_scope",
             "other": "capabilities_help",
         },
     )
@@ -231,10 +234,15 @@ def build_assistant_graph(settings: Settings):
         route_after_email_requirements,
         {"ready": "classify_email_category", "needs_info": "ask_email_requirements", "unsupported": "unsupported_email"},
     )
+    graph_builder.add_conditional_edges(
+        "analyze_qa_scope",
+        route_after_qa_scope,
+        {"answerable": "plan_qa_search", "out_of_scope": "qa_out_of_scope"},
+    )
 
     graph_builder.add_edge("ask_post_requirements", END)
     graph_builder.add_edge("ask_email_requirements", END)
-    graph_builder.add_edge("qa_not_implemented", END)
+    graph_builder.add_edge("qa_out_of_scope", END)
     graph_builder.add_edge("capabilities_help", END)
 
     graph_builder.add_edge("search_plan", "research")
@@ -254,6 +262,11 @@ def build_assistant_graph(settings: Settings):
     graph_builder.add_edge("draft_email", "review_email")
     graph_builder.add_edge("review_email", "finalize_email")
     graph_builder.add_edge("finalize_email", END)
+
+    graph_builder.add_edge("plan_qa_search", "retrieve_qa_context")
+    graph_builder.add_edge("retrieve_qa_context", "draft_qa_answer")
+    graph_builder.add_edge("draft_qa_answer", "finalize_qa_answer")
+    graph_builder.add_edge("finalize_qa_answer", END)
 
     return graph_builder.compile(checkpointer=InMemorySaver())
 
