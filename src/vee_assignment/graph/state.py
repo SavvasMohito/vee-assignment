@@ -11,6 +11,8 @@ class AssistantState(TypedDict, total=False):
     organization_name: str
     organization_url: str
     platform: str
+    awaiting_post_platform: bool
+    pending_post_request: str
     route: str
     route_reasoning: str
     user_request: str

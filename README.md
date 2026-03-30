@@ -63,10 +63,7 @@ Or run directly:
 uv run python main.py
 ```
 
-The CLI will prompt for:
-
-- Organization website URL
-- Default post platform (`linkedin`, `instagram`, `x`)
+When the CLI starts, Maggie introduces herself, asks for the organization website URL, loads organization context for the session, and then invites the user to ask for help naturally.
 
 Then you can chat with requests like:
 
@@ -75,6 +72,8 @@ Then you can chat with requests like:
 - "Draft a donation thank-you email for recent contributors."
 - "Draft an email asking board members for meeting availability and include meeting scope."
 
+If a post request does not specify a platform, Maggie will ask a follow-up question for `linkedin`, `instagram`, or `x`.
+
 Type `exit` to quit.
 
 ## Architecture (Current Milestone)
@@ -82,11 +81,12 @@ Type `exit` to quit.
 The assistant uses a single LangGraph `StateGraph`:
 
 1. **Organization profile** - scrape website and infer organization name.
-2. **Router** - classify each message into `post`, `email`, `qa`, or `other`.
-3. **Post branch** - research, pillar selection, draft, review, finalize.
-4. **Email branch** - category classification, draft, review, finalize.
-5. **Q&A branch** - placeholder response (next milestone).
-6. **Other branch** - capability/help response.
+2. **Conversational onboarding** - acknowledge context loading before open-ended chat begins.
+3. **Router** - classify each message into `post`, `email`, `qa`, or `other`.
+4. **Post branch** - research, pillar selection, draft, review, finalize.
+5. **Email branch** - category classification, draft, review, finalize.
+6. **Q&A branch** - placeholder response (next milestone).
+7. **Other branch** - conversational out-of-scope/help response.
 
 Key modules:
 

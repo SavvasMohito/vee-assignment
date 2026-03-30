@@ -23,7 +23,7 @@ class JinaClient:
     ) -> None:
         self.api_key = api_key
         self.search_url = "https://s.jina.ai/"
-        self.reader_url = "https://r.jina.ai/http://"
+        self.reader_url = "https://r.jina.ai/"
         self.timeout_seconds = timeout_seconds
 
     def _headers(self) -> dict[str, str]:
@@ -46,20 +46,15 @@ class JinaClient:
             response = client.post(self.search_url, headers=self._headers(), json=payload)
             response.raise_for_status()
         body = self._extract_search_body(response)
-        preview = body[:800].replace("\n", " ")
-        # print(f"[jina] search response preview: {preview}")
         return body
 
     def fetch_url_content(self, url: str) -> str:
-        clean_url = url.strip().removeprefix("https://").removeprefix("http://")
-        full_url = f"{self.reader_url}{clean_url}"
-        print(f"[jina] scrape organization URL: {url.strip()}")
+        clean_url = url.strip()
+        print(f"[jina] scrape organization URL: {clean_url}")
         with httpx.Client(timeout=self.timeout_seconds) as client:
-            response = client.get(full_url, headers={"Accept": "text/plain"})
+            response = client.post(self.reader_url, headers=self._headers(), json={"url": clean_url})
             response.raise_for_status()
-        body = response.text
-        preview = body[:500].replace("\n", " ")
-        print(f"[jina] organization scrape preview: {preview}")
+        body = response.json()["data"]["text"].replace("\n", " ")
         return body
 
     def collect_research(self, query: str, max_pages: int = 3) -> list[ResearchDocument]:

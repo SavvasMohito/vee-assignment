@@ -5,9 +5,7 @@ import uuid
 from langchain_core.messages import HumanMessage
 
 from vee_assignment.config import Settings
-from vee_assignment.graph.assistant import build_assistant_graph
-
-PLATFORMS = {"linkedin", "instagram", "x"}
+from vee_assignment.graph.assistant import build_assistant_graph, load_organization_profile
 
 
 def main() -> None:
@@ -18,18 +16,27 @@ def main() -> None:
         print("Expected required env vars: OPENAI_API_KEY, JINA_API_KEY")
         return
 
+    print(
+        "Maggie: Hey, I am Maggie. I can help you create social posts, "
+        "draft supported nonprofit emails, and answer general questions about "
+        "your organization."
+    )
+    print(
+        "Maggie: Before I start, please share your organization's website so "
+        "I can understand your profile and help with better context.\n"
+    )
     organization_url = _read_organization_url()
-    platform = _read_default_platform()
+
+    print("\nMaggie: Thanks. Give me a moment to learn about your organization.\n")
+    profile = load_organization_profile(settings, organization_url)
+    organization_name = profile.get("organization_name", "your organization")
 
     graph = build_assistant_graph(settings)
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
-    print("\nUnified nonprofit assistant ready. Type 'exit' to stop.")
-    print("Capabilities:")
-    print("- Social post creation")
-    print("- Email drafting (3 assignment categories)")
-    print("- Organization Q&A (coming next milestone)\n")
+    print(f"Maggie: Thanks, I have the context I need for {organization_name}. " "What would you like help with today?")
+    print("Maggie: I can help with social posts, email drafting, and answering general questions about your organization.\n")
     while True:
         user_request = input("You: ").strip()
         if user_request.lower() in {"exit", "quit"}:
@@ -43,7 +50,8 @@ def main() -> None:
                 {
                     "messages": [HumanMessage(content=user_request)],
                     "organization_url": organization_url,
-                    "platform": platform,
+                    "organization_name": organization_name,
+                    "org_profile_note": profile.get("org_profile_note", ""),
                 },
                 config=config,
             )
@@ -53,17 +61,9 @@ def main() -> None:
 
         messages = state.get("messages", [])
         if not messages:
-            print("Assistant: Unable to produce a response.\n")
+            print("Maggie: Unable to produce a response.\n")
             continue
-        print(f"Assistant:\n{messages[-1].content}\n")
-
-
-def _read_default_platform() -> str:
-    while True:
-        platform = input("Default post platform (linkedin / instagram / x): ").strip().lower()
-        if platform in PLATFORMS:
-            return platform
-        print("Unsupported platform. Choose one of: linkedin, instagram, x.")
+        print(f"Maggie:\n{messages[-1].content}\n")
 
 
 def _read_organization_url() -> str:
