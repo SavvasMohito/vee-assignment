@@ -45,6 +45,7 @@ ROUTER_PROMPT = """Classify the user request into one route:
 
 Routing rule:
 - If the user asks to draft or compose any email, always choose `email` even if the requested email type is unsupported.
+- If the user asks to draft or compose any social post, choose `post` even when topic details are missing.
 
 User message:
 {user_message}

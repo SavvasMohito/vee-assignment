@@ -34,3 +34,13 @@ class ReviewResult(BaseModel):
     final_post_text: str = Field(min_length=1)
     risk_notes: list[str] = Field(default_factory=list)
     changes_made: str = Field(min_length=1)
+
+
+class PostRequirementDecision(BaseModel):
+    enough_info: bool
+    extracted_platform: Platform | None = None
+    extracted_topic: str = ""
+    prefers_suggestion: bool = False
+    missing_fields: list[str] = Field(default_factory=list)
+    followup_question: str = Field(min_length=1)
+    reasoning: str = Field(min_length=1)

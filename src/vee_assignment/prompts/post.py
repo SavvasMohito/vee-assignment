@@ -1,3 +1,27 @@
+POST_REQUIREMENTS_PROMPT = """Determine whether this post request has enough information to proceed.
+
+Goal:
+- We need platform (linkedin, instagram, or x) and either:
+  1) a concrete topic/detail from the user, or
+  2) explicit permission for Maggie to suggest a topic from recent organization context.
+
+Policy:
+- Balanced strictness: if there is at least one concrete topic detail, mark enough_info=true.
+- If request is generic, mark enough_info=false and ask one concise follow-up.
+- If user explicitly asks Maggie to choose/suggest, set prefers_suggestion=true.
+
+Organization:
+- Name: {organization_name}
+- URL: {organization_url}
+
+Latest user request:
+{user_request}
+
+Previously known platform (may be empty):
+{known_platform}
+"""
+
+
 SEARCH_PLAN_PROMPT = """Create one focused web search query for this post request.
 
 Organization name: {organization_name}
@@ -45,6 +69,9 @@ Selected pillar: {pillar}
 User request: {user_request}
 Research summary:
 {research_summary}
+
+If the user provided specific topic details, prioritize those details.
+If the user asked you to suggest a topic, use research to pick a timely, relevant angle.
 
 Return:
 - post text

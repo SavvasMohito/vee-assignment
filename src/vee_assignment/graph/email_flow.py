@@ -23,6 +23,14 @@ def create_email_nodes(
     """Build email-draft subgraph node callables."""
 
     def classify_email_category_node(state: AssistantState) -> AssistantState:
+        extracted_category = state.get("email_extracted_category", "").strip()
+        if extracted_category:
+            return {
+                "email_category": extracted_category,
+                "email_category_reasoning": "Used category extracted by email requirements analyzer.",
+                "email_fits_allowed_categories": state.get("email_category_supported", True),
+            }
+
         decision = email_category_model.invoke(
             [
                 {"role": "system", "content": SYSTEM_PROMPT},

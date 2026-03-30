@@ -72,7 +72,9 @@ Then you can chat with requests like:
 - "Draft a donation thank-you email for recent contributors."
 - "Draft an email asking board members for meeting availability and include meeting scope."
 
-If a post request does not specify a platform, Maggie will ask a follow-up question for `linkedin`, `instagram`, or `x`.
+Before drafting, Maggie uses an LLM requirement-check step to decide whether your request is specific enough.
+If a post request is missing required context (platform and/or topic preference), Maggie asks a targeted follow-up question before creating content.
+For email drafting, Maggie confirms one of the 3 supported email categories when needed and asks for missing details before drafting.
 
 Type `exit` to quit.
 
@@ -83,8 +85,8 @@ The assistant uses a single LangGraph `StateGraph`:
 1. **Organization profile** - scrape website and infer organization name.
 2. **Conversational onboarding** - acknowledge context loading before open-ended chat begins.
 3. **Router** - classify each message into `post`, `email`, `qa`, or `other`.
-4. **Post branch** - research, pillar selection, draft, review, finalize.
-5. **Email branch** - category classification, draft, review, finalize.
+4. **Post branch** - LLM requirement analysis (platform/topic sufficiency), then research, pillar selection, draft, review, finalize.
+5. **Email branch** - LLM requirement analysis (supported category/details sufficiency), then category validation, draft, review, finalize.
 6. **Q&A branch** - placeholder response (next milestone).
 7. **Other branch** - conversational out-of-scope/help response.
 

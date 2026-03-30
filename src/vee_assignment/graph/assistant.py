@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import httpx
-import re
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import InMemorySaver
@@ -11,9 +10,11 @@ from vee_assignment.config import Settings
 from vee_assignment.graph.email_flow import create_email_nodes, route_after_email_category
 from vee_assignment.graph.post_flow import create_post_nodes
 from vee_assignment.graph.state import AssistantState
+from vee_assignment.prompts.email import EMAIL_REQUIREMENTS_PROMPT
+from vee_assignment.prompts.post import POST_REQUIREMENTS_PROMPT
 from vee_assignment.prompts.router import ORG_NAME_PROMPT, ROUTER_PROMPT, SYSTEM_PROMPT
-from vee_assignment.schemas.email import EmailCategoryDecision, EmailDraft, EmailReviewResult
-from vee_assignment.schemas.post import PillarDecision, PostDraft, ReviewResult, SearchPlan
+from vee_assignment.schemas.email import EmailCategoryDecision, EmailDraft, EmailRequirementDecision, EmailReviewResult
+from vee_assignment.schemas.post import PillarDecision, PostDraft, PostRequirementDecision, ReviewResult, SearchPlan
 from vee_assignment.schemas.router import OrganizationProfile, RouteDecision
 from vee_assignment.tools.jina import JinaClient
 
@@ -26,7 +27,8 @@ def build_assistant_graph(settings: Settings):
     )
 
     router_model = model.with_structured_output(RouteDecision)
-    org_profile_model = model.with_structured_output(OrganizationProfile)
+    post_requirements_model = model.with_structured_output(PostRequirementDecision)
+    email_requirements_model = model.with_structured_output(EmailRequirementDecision)
     plan_model = model.with_structured_output(SearchPlan)
     pillar_model = model.with_structured_output(PillarDecision)
     post_draft_model = model.with_structured_output(PostDraft)
@@ -58,22 +60,23 @@ def build_assistant_graph(settings: Settings):
 
     def router_node(state: AssistantState) -> AssistantState:
         user_request = _latest_user_message(state)
-        if state.get("awaiting_post_platform"):
-            platform = _extract_platform_from_text(user_request)
-            if platform:
-                return {
-                    "user_request": state.get("pending_post_request", user_request),
-                    "platform": platform,
-                    "route": "post",
-                    "route_reasoning": "User provided the requested post platform.",
-                    "awaiting_post_platform": False,
-                    "pending_post_request": "",
-                }
+        if state.get("awaiting_post_requirements"):
+            merged_request = _merge_clarification(state.get("pending_post_request", ""), user_request)
             return {
-                "user_request": state.get("pending_post_request", user_request),
-                "route": "post_platform_needed",
-                "route_reasoning": "Still waiting for the user to choose LinkedIn, Instagram, or X.",
-                "awaiting_post_platform": True,
+                "user_request": merged_request,
+                "route": "post",
+                "route_reasoning": "Merged post clarification and re-checking requirements.",
+                "awaiting_post_requirements": False,
+                "pending_post_request": merged_request,
+            }
+        if state.get("awaiting_email_requirements"):
+            merged_request = _merge_clarification(state.get("pending_email_request", ""), user_request)
+            return {
+                "user_request": merged_request,
+                "route": "email",
+                "route_reasoning": "Merged email clarification and re-checking requirements.",
+                "awaiting_email_requirements": False,
+                "pending_email_request": merged_request,
             }
 
         decision = router_model.invoke(
@@ -82,22 +85,6 @@ def build_assistant_graph(settings: Settings):
                 {"role": "user", "content": ROUTER_PROMPT.format(user_message=user_request)},
             ]
         )
-        if decision.route == "post":
-            platform = _extract_platform_from_text(user_request) or state.get("platform")
-            if platform:
-                return {
-                    "user_request": user_request,
-                    "platform": platform,
-                    "route": "post",
-                    "route_reasoning": decision.reasoning,
-                }
-            return {
-                "user_request": user_request,
-                "route": "post_platform_needed",
-                "route_reasoning": "Need the target platform before drafting the post.",
-                "awaiting_post_platform": True,
-                "pending_post_request": user_request,
-            }
         return {
             "user_request": user_request,
             "route": decision.route,
@@ -106,16 +93,89 @@ def build_assistant_graph(settings: Settings):
 
     def route_after_router(state: AssistantState) -> str:
         route = state.get("route", "other")
-        if route in {"post", "email", "qa", "other", "post_platform_needed"}:
+        if route in {"post", "email", "qa", "other"}:
             return route
         return "other"
 
-    def ask_post_platform_node(state: AssistantState) -> AssistantState:
-        message = (
-            "Happy to help with that post. Which platform should I write it for: "
-            "LinkedIn, Instagram, or X?"
+    def analyze_post_requirements_node(state: AssistantState) -> AssistantState:
+        decision = post_requirements_model.invoke(
+            [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": POST_REQUIREMENTS_PROMPT.format(
+                        organization_name=state.get("organization_name", ""),
+                        organization_url=state.get("organization_url", ""),
+                        user_request=state.get("user_request", ""),
+                        known_platform=state.get("platform", ""),
+                    ),
+                },
+            ]
         )
-        return {"messages": [AIMessage(content=message)]}
+        platform = decision.extracted_platform or state.get("platform", "")
+        return {
+            "platform": platform,
+            "post_info_sufficient": decision.enough_info,
+            "post_missing_fields": decision.missing_fields,
+            "post_followup_question": decision.followup_question,
+            "post_extracted_topic": decision.extracted_topic,
+            "post_extracted_platform": decision.extracted_platform or "",
+            "post_user_prefers_suggestion": decision.prefers_suggestion,
+            "pending_post_request": state.get("user_request", ""),
+        }
+
+    def route_after_post_requirements(state: AssistantState) -> str:
+        if state.get("post_info_sufficient"):
+            return "ready"
+        return "needs_info"
+
+    def ask_post_requirements_node(state: AssistantState) -> AssistantState:
+        message = state.get("post_followup_question", "").strip() or (
+            "Before I draft, do you have a specific topic in mind, or should I suggest "
+            "one from the latest news about your organization?"
+        )
+        return {
+            "messages": [AIMessage(content=message)],
+            "awaiting_post_requirements": True,
+            "pending_post_request": state.get("pending_post_request", state.get("user_request", "")),
+        }
+
+    def analyze_email_requirements_node(state: AssistantState) -> AssistantState:
+        decision = email_requirements_model.invoke(
+            [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": EMAIL_REQUIREMENTS_PROMPT.format(user_request=state.get("user_request", ""))},
+            ]
+        )
+        return {
+            "email_info_sufficient": decision.enough_info,
+            "email_missing_fields": decision.missing_fields,
+            "email_followup_question": decision.followup_question,
+            "email_extracted_category": decision.extracted_category or "",
+            "email_extracted_details": decision.extracted_details,
+            "email_category_supported": decision.category_supported,
+            "pending_email_request": state.get("user_request", ""),
+            "email_category": decision.extracted_category or state.get("email_category", ""),
+            "email_fits_allowed_categories": decision.category_supported,
+        }
+
+    def route_after_email_requirements(state: AssistantState) -> str:
+        if not state.get("email_category_supported", True):
+            return "unsupported"
+        if state.get("email_info_sufficient"):
+            return "ready"
+        return "needs_info"
+
+    def ask_email_requirements_node(state: AssistantState) -> AssistantState:
+        message = state.get("email_followup_question", "").strip() or (
+            "Before I draft, what should this email include? I can help with Donation Thank You, "
+            "Volunteering Opportunities, and Meeting Availability emails."
+        )
+        return {
+            "messages": [AIMessage(content=message)],
+            "awaiting_email_requirements": True,
+            "pending_email_request": state.get("pending_email_request", state.get("user_request", "")),
+        }
 
     def qa_not_implemented_node(state: AssistantState) -> AssistantState:
         message = (
@@ -136,7 +196,10 @@ def build_assistant_graph(settings: Settings):
     graph_builder = StateGraph(AssistantState)
     graph_builder.add_node("infer_org_profile", infer_org_profile_node)
     graph_builder.add_node("router", router_node)
-    graph_builder.add_node("ask_post_platform", ask_post_platform_node)
+    graph_builder.add_node("analyze_post_requirements", analyze_post_requirements_node)
+    graph_builder.add_node("ask_post_requirements", ask_post_requirements_node)
+    graph_builder.add_node("analyze_email_requirements", analyze_email_requirements_node)
+    graph_builder.add_node("ask_email_requirements", ask_email_requirements_node)
     graph_builder.add_node("qa_not_implemented", qa_not_implemented_node)
     graph_builder.add_node("capabilities_help", capabilities_help_node)
 
@@ -151,15 +214,26 @@ def build_assistant_graph(settings: Settings):
         "router",
         route_after_router,
         {
-            "post": "search_plan",
-            "email": "classify_email_category",
+            "post": "analyze_post_requirements",
+            "email": "analyze_email_requirements",
             "qa": "qa_not_implemented",
             "other": "capabilities_help",
-            "post_platform_needed": "ask_post_platform",
         },
     )
 
-    graph_builder.add_edge("ask_post_platform", END)
+    graph_builder.add_conditional_edges(
+        "analyze_post_requirements",
+        route_after_post_requirements,
+        {"ready": "search_plan", "needs_info": "ask_post_requirements"},
+    )
+    graph_builder.add_conditional_edges(
+        "analyze_email_requirements",
+        route_after_email_requirements,
+        {"ready": "classify_email_category", "needs_info": "ask_email_requirements", "unsupported": "unsupported_email"},
+    )
+
+    graph_builder.add_edge("ask_post_requirements", END)
+    graph_builder.add_edge("ask_email_requirements", END)
     graph_builder.add_edge("qa_not_implemented", END)
     graph_builder.add_edge("capabilities_help", END)
 
@@ -206,6 +280,16 @@ def _latest_user_message(state: AssistantState) -> str:
     return ""
 
 
+def _merge_clarification(previous_request: str, clarification: str) -> str:
+    base = previous_request.strip()
+    extra = clarification.strip()
+    if not base:
+        return extra
+    if not extra:
+        return base
+    return f"{base}\n\nUser clarification: {extra}"
+
+
 def _infer_organization_profile(
     model: ChatOpenAI,
     jina: JinaClient,
@@ -237,14 +321,3 @@ def _infer_organization_profile(
         ]
     )
     return {"organization_name": inferred.organization_name, "org_profile_note": inferred.confidence_note}
-
-
-def _extract_platform_from_text(text: str) -> str | None:
-    lowered = text.lower()
-    if "linkedin" in lowered:
-        return "linkedin"
-    if "instagram" in lowered or re.search(r"\big\b", lowered):
-        return "instagram"
-    if "twitter" in lowered or "twitter/x" in lowered or re.search(r"\bx\b", lowered):
-        return "x"
-    return None
