@@ -1,0 +1,24 @@
+[project]
+name = "vee-assignment"
+version = "0.1.0"
+description = "LangGraph social media assistant for nonprofits"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "langchain>=1.2.13",
+    "langchain-openai>=1.1.12",
+    "langgraph>=1.1.3",
+    "pydantic>=2.12.5",
+    "python-dotenv>=1.2.2",
+]
+
+[project.scripts]
+vee-assignment = "vee_assignment.cli:main"
+
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vee_assignment"]
