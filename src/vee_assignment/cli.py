@@ -5,7 +5,7 @@ import uuid
 from langchain_core.messages import HumanMessage
 
 from vee_assignment.config import Settings
-from vee_assignment.graph.post_creation import build_post_creation_graph
+from vee_assignment.graph.assistant import build_assistant_graph
 
 PLATFORMS = {"linkedin", "instagram", "x"}
 
@@ -19,13 +19,17 @@ def main() -> None:
         return
 
     organization_url = _read_organization_url()
-    platform = _read_platform()
+    platform = _read_default_platform()
 
-    graph = build_post_creation_graph(settings)
+    graph = build_assistant_graph(settings)
     thread_id = str(uuid.uuid4())
     config = {"configurable": {"thread_id": thread_id}}
 
-    print("\nPost creation assistant ready. Type 'exit' to stop.\n")
+    print("\nUnified nonprofit assistant ready. Type 'exit' to stop.")
+    print("Capabilities:")
+    print("- Social post creation")
+    print("- Email drafting (3 assignment categories)")
+    print("- Organization Q&A (coming next milestone)\n")
     while True:
         user_request = input("You: ").strip()
         if user_request.lower() in {"exit", "quit"}:
@@ -54,9 +58,9 @@ def main() -> None:
         print(f"Assistant:\n{messages[-1].content}\n")
 
 
-def _read_platform() -> str:
+def _read_default_platform() -> str:
     while True:
-        platform = input("Target platform (linkedin / instagram / x): ").strip().lower()
+        platform = input("Default post platform (linkedin / instagram / x): ").strip().lower()
         if platform in PLATFORMS:
             return platform
         print("Unsupported platform. Choose one of: linkedin, instagram, x.")

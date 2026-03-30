@@ -1,14 +1,19 @@
-# Vee Assignment - LangGraph Post Creation
+# Vee Assignment - Unified Conversational Agent
 
-This project implements the first feature from `assignment.md`: a conversational post-creation assistant for nonprofits using LangGraph + LangChain with OpenAI models and Jina web research.
+This project implements a unified conversational assistant for nonprofits using LangGraph + LangChain with OpenAI models and Jina-powered web/website retrieval.
 
 ## Implemented Scope
 
-- Conversational CLI flow for social post creation.
+- One conversational CLI assistant with intent routing.
 - LangGraph workflow with explicit state and node boundaries.
-- Internet research via `s.jina.ai` search with full SERP context.
+- Internet research via `s.jina.ai` for post context.
+- Website scraping via `r.jina.ai` for organization grounding.
 - Automatic content pillar selection (from the 5 required pillars).
 - Platform-adapted post drafting for LinkedIn, Instagram, and X.
+- Email drafting with only 3 allowed categories:
+  - Donation Thank You Email
+  - Inform about Volunteering Opportunities
+  - Ask Availability for a Meeting (with meeting scope)
 - Review node to reduce risky/fabricated claims.
 
 ## Tech Stack
@@ -18,7 +23,7 @@ This project implements the first feature from `assignment.md`: a conversational
 - LangGraph (graph orchestration)
 - LangChain + `langchain-openai` (LLM integration)
 - OpenAI models via `OPENAI_API_KEY`
-- Jina AI search endpoint (`s.jina.ai`) for SERP + linked context
+- Jina AI search and reader endpoints (`s.jina.ai`, `r.jina.ai`)
 
 ## Setup
 
@@ -61,36 +66,38 @@ uv run python main.py
 The CLI will prompt for:
 
 - Organization website URL
-- Target platform (`linkedin`, `instagram`, `x`)
+- Default post platform (`linkedin`, `instagram`, `x`)
 
 Then you can chat with requests like:
 
 - "Write a post about the flooding in Texas."
 - "Create an Instagram post about volunteer cleanup day."
+- "Draft a donation thank-you email for recent contributors."
+- "Draft an email asking board members for meeting availability and include meeting scope."
 
 Type `exit` to quit.
 
-## Architecture (First Feature)
+## Architecture (Current Milestone)
 
-The post-creation flow is a LangGraph `StateGraph`:
+The assistant uses a single LangGraph `StateGraph`:
 
-1. **Intake** - classify whether the request is a post-creation request.
-2. **Search plan** - generate a focused web query.
-3. **Organization profile** - scrape website and infer organization name.
-4. **Research** - fetch full SERP context using `s.jina.ai`.
-5. **Summarize** - condense research into high-confidence notes.
-6. **Pillar selection** - choose one required NPO pillar.
-7. **Draft** - generate platform-specific post + hashtags.
-8. **Review** - safety/quality review and adjustment.
-9. **Finalize** - return formatted response with cited sources.
+1. **Organization profile** - scrape website and infer organization name.
+2. **Router** - classify each message into `post`, `email`, `qa`, or `other`.
+3. **Post branch** - research, pillar selection, draft, review, finalize.
+4. **Email branch** - category classification, draft, review, finalize.
+5. **Q&A branch** - placeholder response (next milestone).
+6. **Other branch** - capability/help response.
 
-Key files:
+Key modules:
 
-- `src/vee_assignment/config.py`
-- `src/vee_assignment/tools/jina.py`
-- `src/vee_assignment/graph/post_creation.py`
-- `src/vee_assignment/cli.py`
+- `src/vee_assignment/graph/assistant.py` (unified graph + routing)
+- `src/vee_assignment/graph/state.py` (shared `AssistantState`)
+- `src/vee_assignment/graph/post_flow.py` (social post branch)
+- `src/vee_assignment/graph/email_flow.py` (email branch)
+- `src/vee_assignment/prompts/router.py`, `prompts/post.py`, `prompts/email.py`
+- `src/vee_assignment/schemas/router.py`, `schemas/post.py`, `schemas/email.py`
+- `src/vee_assignment/config.py`, `tools/jina.py`, `cli.py`
 
-## Notes for Next Milestones
+## Notes For Next Milestones
 
-The project is structured so email drafting and organization Q&A can be added as additional graph flows without changing the config/tooling foundation.
+The project is structured so organization Q&A can be added as a first-class graph branch without changing the current routing foundation.
