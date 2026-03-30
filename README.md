@@ -102,6 +102,75 @@ When enabled, the terminal prints concise internal progress lines such as:
 
 This uses LangGraph `stream(..., stream_mode=\"updates\", version=\"v2\")` to show node-level state updates before Maggie's final reply.
 
+### Traceability with LangSmith
+
+If you set LangSmith environment variables, traces for model/tool/graph runs are also visible in the LangSmith UI:
+
+- `LANGSMITH_API_KEY`
+- `LANGSMITH_TRACING=true`
+- `LANGSMITH_PROJECT=vee-assignment-evals` (or your preferred project name)
+
+This complements terminal streaming by giving you persistent run history, debugging context, and experiment links.
+
+## Evaluation (Bonus)
+
+This repo includes a LangSmith-based evaluation harness for automated output checks across post, email, and QA branches.
+
+### Evaluation Setup
+
+Add these vars to `.env`:
+
+- `LANGSMITH_API_KEY`
+- `LANGSMITH_TRACING=true`
+- `LANGSMITH_PROJECT=vee-assignment-evals` (or your preferred project name)
+
+Install dependencies:
+
+```bash
+uv sync
+```
+
+### Run evaluations
+
+Run deterministic evaluators on LangSmith:
+
+```bash
+uv run python evals/run_langsmith_eval.py --dataset evals/datasets/starter.jsonl
+```
+
+Include LLM-as-judge evaluators (slower/costly):
+
+```bash
+uv run python evals/run_langsmith_eval.py --dataset evals/datasets/starter.jsonl --with-llm-judge
+```
+
+Run locally only (no LangSmith upload), useful when you want quick checks in terminal:
+
+```bash
+uv run python evals/run_langsmith_eval.py --dataset evals/datasets/starter.jsonl --dry-run
+```
+
+### Where results appear
+
+- **LangSmith run**: Prints an experiment URL and full results are visible in LangSmith.
+- **Dry-run**: Prints per-example evaluator scores in your local terminal.
+
+### What gets scored
+
+- `route_correct` - expected branch routing (`post`/`email`/`qa`/`other`)
+- `email_category_valid` - allowed email-category compliance when provided
+- `post_platform_present` - platform extraction/compliance for post cases
+- `qa_scope_handling` - in-scope vs out-of-scope QA behavior
+- `response_quality_judge` - LLM-as-judge quality rubric (optional)
+- `safety_overclaiming_judge` - LLM-as-judge safety/caution rubric (optional)
+
+### Dataset format
+
+`evals/datasets/starter.jsonl` uses one JSON object per line with:
+
+- `inputs`: org context + `user_message`
+- `outputs`: expected route and optional branch-specific references
+
 ## Architecture (Current Milestone)
 
 The assistant uses a single LangGraph `StateGraph`:

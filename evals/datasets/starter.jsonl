@@ -1,0 +1,14 @@
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Draft a LinkedIn post about our volunteer cleanup day this Saturday"},"outputs":{"expected_route":"post"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Create an Instagram post about donor appreciation week"},"outputs":{"expected_route":"post"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"I want help drafting a LinkedIn post"},"outputs":{"expected_route":"post"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Write an X post about our new mentorship program"},"outputs":{"expected_route":"post"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"I need your help drafting an email"},"outputs":{"expected_route":"email"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Draft a donor thank-you email for recent contributors"},"outputs":{"expected_route":"email","expected_email_category":"Donation Thank You Email"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Draft an email to inform people about volunteering opportunities next month"},"outputs":{"expected_route":"email","expected_email_category":"Inform about Volunteering Opportunities"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Draft an email asking board members for meeting availability and include meeting scope"},"outputs":{"expected_route":"email","expected_email_category":"Ask Availability for a Meeting"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Draft an investor update email about quarterly financials"},"outputs":{"expected_route":"email"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"What does your organization do?"},"outputs":{"expected_route":"qa","qa_scope":"in_scope"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"What upcoming events does your organization have?"},"outputs":{"expected_route":"qa","qa_scope":"in_scope"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"What is the capital of France?"},"outputs":{"expected_route":"qa","qa_scope":"out_of_scope"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Can you explain quantum mechanics?"},"outputs":{"expected_route":"qa","qa_scope":"out_of_scope"}}
+{"inputs":{"organization_url":"https://example.org","organization_name":"Example Org","user_message":"Thanks!"},"outputs":{"expected_route":"other"}}
