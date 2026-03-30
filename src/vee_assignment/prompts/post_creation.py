@@ -23,6 +23,17 @@ Writing constraints:
 """
 
 
+ORG_NAME_PROMPT = """Infer the nonprofit organization's name from its website content.
+Return the best guess for the official organization name.
+
+Website URL:
+{organization_url}
+
+Website extracted content:
+{website_content}
+"""
+
+
 INTAKE_PROMPT = """Classify whether this user message is asking for social media post creation.
 Return false only if clearly unrelated.
 

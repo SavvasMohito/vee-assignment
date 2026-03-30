@@ -18,8 +18,7 @@ def main() -> None:
         print("Expected required env vars: OPENAI_API_KEY, JINA_API_KEY")
         return
 
-    organization_name = input("Organization name: ").strip()
-    organization_url = input("Organization website URL (optional): ").strip()
+    organization_url = _read_organization_url()
     platform = _read_platform()
 
     graph = build_post_creation_graph(settings)
@@ -39,7 +38,6 @@ def main() -> None:
             state = graph.invoke(
                 {
                     "messages": [HumanMessage(content=user_request)],
-                    "organization_name": organization_name,
                     "organization_url": organization_url,
                     "platform": platform,
                 },
@@ -62,6 +60,14 @@ def _read_platform() -> str:
         if platform in PLATFORMS:
             return platform
         print("Unsupported platform. Choose one of: linkedin, instagram, x.")
+
+
+def _read_organization_url() -> str:
+    while True:
+        value = input("Organization website URL: ").strip()
+        if value.startswith("http://") or value.startswith("https://"):
+            return value
+        print("Please provide a full URL starting with http:// or https://")
 
 
 if __name__ == "__main__":

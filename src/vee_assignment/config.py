@@ -10,9 +10,6 @@ class Settings(BaseModel):
     openai_api_key: str = Field(min_length=1)
     openai_model: str = Field(default="gpt-4.1-mini", min_length=1)
     jina_api_key: str = Field(min_length=1)
-    jina_gl: str = Field(default="GB", min_length=2)
-    jina_hl: str = Field(default="en", min_length=2)
-    max_research_pages: int = Field(default=3, ge=1, le=5)
     request_timeout_seconds: float = Field(default=20.0, gt=0)
 
     @classmethod
@@ -23,9 +20,6 @@ class Settings(BaseModel):
                 openai_api_key=os.getenv("OPENAI_API_KEY", ""),
                 openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
                 jina_api_key=os.getenv("JINA_API_KEY", ""),
-                jina_gl=os.getenv("JINA_GL", "GB"),
-                jina_hl=os.getenv("JINA_HL", "en"),
-                max_research_pages=int(os.getenv("MAX_RESEARCH_PAGES", "3")),
                 request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
             )
         except ValidationError as exc:
@@ -39,9 +33,6 @@ def format_settings_error(exc: ValidationError) -> str:
         "openai_api_key": "OPENAI_API_KEY",
         "openai_model": "OPENAI_MODEL",
         "jina_api_key": "JINA_API_KEY",
-        "jina_gl": "JINA_GL",
-        "jina_hl": "JINA_HL",
-        "max_research_pages": "MAX_RESEARCH_PAGES",
         "request_timeout_seconds": "REQUEST_TIMEOUT_SECONDS",
     }
     missing = []

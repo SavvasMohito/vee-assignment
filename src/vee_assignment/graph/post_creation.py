@@ -12,13 +12,21 @@ from vee_assignment.config import Settings
 from vee_assignment.prompts.post_creation import (
     DRAFT_PROMPT,
     INTAKE_PROMPT,
+    ORG_NAME_PROMPT,
     PILLAR_PROMPT,
     RESEARCH_SUMMARY_PROMPT,
     REVIEW_PROMPT,
     SEARCH_PLAN_PROMPT,
     SYSTEM_PROMPT,
 )
-from vee_assignment.schemas.post_creation import IntentDecision, PillarDecision, PostDraft, ReviewResult, SearchPlan
+from vee_assignment.schemas.post_creation import (
+    IntentDecision,
+    OrganizationProfile,
+    PillarDecision,
+    PostDraft,
+    ReviewResult,
+    SearchPlan,
+)
 from vee_assignment.tools.jina import JinaClient
 
 
@@ -44,6 +52,7 @@ class PostCreationState(TypedDict, total=False):
     review_changes_made: str
     source_urls: list[str]
     research_warning: str
+    org_profile_note: str
 
 
 def build_post_creation_graph(settings: Settings):
@@ -51,11 +60,10 @@ def build_post_creation_graph(settings: Settings):
     jina = JinaClient(
         api_key=settings.jina_api_key,
         timeout_seconds=settings.request_timeout_seconds,
-        gl=settings.jina_gl,
-        hl=settings.jina_hl,
     )
 
     intent_model = model.with_structured_output(IntentDecision)
+    org_profile_model = model.with_structured_output(OrganizationProfile)
     plan_model = model.with_structured_output(SearchPlan)
     pillar_model = model.with_structured_output(PillarDecision)
     draft_model = model.with_structured_output(PostDraft)
@@ -88,6 +96,37 @@ def build_post_creation_graph(settings: Settings):
         )
         return {"messages": [AIMessage(content=message)]}
 
+    def infer_org_profile_node(state: PostCreationState) -> PostCreationState:
+        organization_url = state.get("organization_url", "").strip()
+        if not organization_url:
+            return {"organization_name": "the organization", "org_profile_note": "No organization URL provided."}
+
+        try:
+            website_content = jina.fetch_url_content(organization_url)
+        except httpx.HTTPError:
+            domain_fallback = organization_url.replace("https://", "").replace("http://", "").split("/")[0]
+            return {
+                "organization_name": domain_fallback or "the organization",
+                "org_profile_note": "Could not scrape organization website; used URL domain as fallback.",
+            }
+
+        inferred = org_profile_model.invoke(
+            [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {
+                    "role": "user",
+                    "content": ORG_NAME_PROMPT.format(
+                        organization_url=organization_url,
+                        website_content=website_content[:4000],
+                    ),
+                },
+            ]
+        )
+        return {
+            "organization_name": inferred.organization_name,
+            "org_profile_note": inferred.confidence_note,
+        }
+
     def search_plan_node(state: PostCreationState) -> PostCreationState:
         planned = plan_model.invoke(
             [
@@ -108,7 +147,7 @@ def build_post_creation_graph(settings: Settings):
     def research_node(state: PostCreationState) -> PostCreationState:
         query = state.get("search_query", "")
         try:
-            docs = jina.collect_research(query=query, max_pages=settings.max_research_pages)
+            docs = jina.collect_research(query=query, max_pages=3)
         except httpx.HTTPError as exc:
             docs = []
             fallback = {
@@ -125,7 +164,7 @@ def build_post_creation_graph(settings: Settings):
         sources: list[str] = []
         for doc in docs:
             sources.extend(jina.extract_urls(doc.content))
-        deduped_sources = list(dict.fromkeys(sources))[: settings.max_research_pages]
+        deduped_sources = list(dict.fromkeys(sources))[:3]
         warning = ""
         if len(deduped_sources) == 0:
             warning = "Limited source extraction from web research."
@@ -241,6 +280,7 @@ def build_post_creation_graph(settings: Settings):
     graph_builder = StateGraph(PostCreationState)
     graph_builder.add_node("intake", intake_node)
     graph_builder.add_node("out_of_scope", out_of_scope_node)
+    graph_builder.add_node("infer_org_profile", infer_org_profile_node)
     graph_builder.add_node("search_plan", search_plan_node)
     graph_builder.add_node("research", research_node)
     graph_builder.add_node("summarize_research", summarize_research_node)
@@ -253,9 +293,10 @@ def build_post_creation_graph(settings: Settings):
     graph_builder.add_conditional_edges(
         "intake",
         route_after_intake,
-        {"continue": "search_plan", "out_of_scope": "out_of_scope"},
+        {"continue": "infer_org_profile", "out_of_scope": "out_of_scope"},
     )
     graph_builder.add_edge("out_of_scope", END)
+    graph_builder.add_edge("infer_org_profile", "search_plan")
     graph_builder.add_edge("search_plan", "research")
     graph_builder.add_edge("research", "summarize_research")
     graph_builder.add_edge("summarize_research", "select_pillar")
