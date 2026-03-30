@@ -77,15 +77,7 @@ graph TD;
 	unsupported_email --> __end__;
 ```
 
-<!-- ![LangGraph workflow for the Maggie assistant](docs/assistant-workflow.png) -->
-
-To regenerate the diagram after graph changes:
-
-```bash
-uv run python scripts/export_workflow_graph.py
-```
-
-The script also writes Mermaid source to `docs/assistant-workflow.mmd`.
+*Image version also available at [docs/assistant-workflow.png](docs/assistant-workflow.png).*
 
 ## Assignment Coverage
 
@@ -178,7 +170,7 @@ If `uv` is not installed yet, follow the official installation guide at [docs.as
 Clone the repository and install dependencies:
 
 ```bash
-git clone <your-repo-url>
+git clone <repo-url>
 cd vee-assignment
 uv sync
 ```
@@ -400,7 +392,3 @@ These are the same example nonprofit websites provided in the assignment and are
 - The review step reduces risk but is not a formal fact-verification guarantee.
 - The graph uses in-memory checkpointing for conversation state, which is enough for a local CLI session but not a persistent multi-user deployment.
 - The graph does not use any short-term or long-term memory.
-
-## Summary
-
-This solution delivers a single LangGraph-powered nonprofit assistant that can draft posts, draft constrained email types, and answer organization questions in one conversation. The final design emphasizes explicit routing, LLM-based requirement gating, retrieval-backed QA, optional observability, and automated evaluation, while keeping the local developer experience straightforward with `uv`.
