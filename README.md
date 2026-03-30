@@ -75,9 +75,6 @@ graph TD;
 	finalize_qa_answer --> __end__;
 	qa_out_of_scope --> __end__;
 	unsupported_email --> __end__;
-	classDef default fill:#f2f0ff,line-height:1.2
-	classDef first fill-opacity:0
-	classDef last fill:#bfb6fc
 ```
 
 <!-- ![LangGraph workflow for the Maggie assistant](docs/assistant-workflow.png) -->
