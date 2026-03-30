@@ -13,7 +13,6 @@ The implementation was designed to satisfy the assignment requirements in `assig
 The graph below is generated from the compiled LangGraph workflow in the codebase, not drawn manually.
 
 ```mermaid
-%%{init: {'theme': 'neutral', "flowchart" : { "curve" : "linear" } } }%%
 graph TD;
 	__start__([<p>__start__</p>]):::first
 	infer_org_profile(infer_org_profile)
