@@ -11,6 +11,8 @@ class Settings(BaseModel):
     openai_model: str = Field(default="gpt-4.1-mini", min_length=1)
     jina_api_key: str = Field(min_length=1)
     request_timeout_seconds: float = Field(default=20.0, gt=0)
+    enable_observability_stream: bool = Field(default=False)
+    observability_stream_prefix: str = Field(default="[trace]", min_length=1)
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -21,6 +23,8 @@ class Settings(BaseModel):
                 openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
                 jina_api_key=os.getenv("JINA_API_KEY", ""),
                 request_timeout_seconds=float(os.getenv("REQUEST_TIMEOUT_SECONDS", "20")),
+                enable_observability_stream=_env_bool("ENABLE_OBSERVABILITY_STREAM", default=False),
+                observability_stream_prefix=os.getenv("OBSERVABILITY_STREAM_PREFIX", "[trace]"),
             )
         except ValidationError as exc:
             raise ValueError(format_settings_error(exc)) from exc
@@ -34,6 +38,7 @@ def format_settings_error(exc: ValidationError) -> str:
         "openai_model": "OPENAI_MODEL",
         "jina_api_key": "JINA_API_KEY",
         "request_timeout_seconds": "REQUEST_TIMEOUT_SECONDS",
+        "observability_stream_prefix": "OBSERVABILITY_STREAM_PREFIX",
     }
     missing = []
     invalid = []
@@ -51,3 +56,15 @@ def format_settings_error(exc: ValidationError) -> str:
     if invalid:
         pieces.append(f"Invalid env vars: {'; '.join(invalid)}")
     return " | ".join(pieces)
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    value = raw.strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return default

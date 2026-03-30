@@ -48,6 +48,8 @@ Optional:
 
 - `OPENAI_MODEL` (default `gpt-4.1-mini`)
 - `REQUEST_TIMEOUT_SECONDS`
+- `ENABLE_OBSERVABILITY_STREAM` (default `false`) - print LangGraph node updates in terminal
+- `OBSERVABILITY_STREAM_PREFIX` (default `[trace]`) - prefix for stream log lines
 
 ## Run
 
@@ -78,6 +80,27 @@ For email drafting, Maggie confirms one of the 3 supported email categories when
 If you ask a direct question, Maggie routes it to an organization Q&A branch, checks whether the question is in-scope for org/public-context answers, and then responds using organization website context plus web research.
 
 Type `exit` to quit.
+
+## Observability (Bonus)
+
+You can enable high-level LangGraph execution tracing in the CLI using streaming updates.
+
+Set in `.env`:
+
+```bash
+ENABLE_OBSERVABILITY_STREAM=true
+OBSERVABILITY_STREAM_PREFIX=[trace]
+```
+
+When enabled, the terminal prints concise internal progress lines such as:
+
+```text
+[trace] router updated (route, route_reasoning, user_request)
+[trace] analyze_post_requirements updated (post_info_sufficient, post_followup_question)
+[trace] ask_post_requirements updated (messages, awaiting_post_requirements)
+```
+
+This uses LangGraph `stream(..., stream_mode=\"updates\", version=\"v2\")` to show node-level state updates before Maggie's final reply.
 
 ## Architecture (Current Milestone)
 
