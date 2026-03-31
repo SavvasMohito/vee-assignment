@@ -170,7 +170,7 @@ If `uv` is not installed yet, follow the official installation guide at [docs.as
 Clone the repository and install dependencies:
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:SavvasMohito/vee-assignment.git
 cd vee-assignment
 uv sync
 ```
